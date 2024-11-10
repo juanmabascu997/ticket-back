@@ -8,6 +8,7 @@ import { EventoModule } from './eventos/evento.module';
 import { InscriptoModule } from './inscriptos/inscripto.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
+import { PaymentsModule } from './payments/payment.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CommonModule } from './common/common.module';
     ClientesModule,
     EventoModule,
     InscriptoModule,
+    PaymentsModule,
     DatabaseModule,
     CommonModule
   ],

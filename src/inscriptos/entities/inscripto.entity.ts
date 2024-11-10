@@ -1,5 +1,6 @@
+import { Payment } from 'src/payments/entities/payment.entity';
 import { Evento } from '../../eventos/entities/evento.entity';
-import { Entity, Column, PrimaryGeneratedColumn, ManyToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToMany, OneToMany } from 'typeorm';
 
 @Entity()
 export class Inscripto {
@@ -20,4 +21,7 @@ export class Inscripto {
 
   @ManyToMany(() => Evento, (evento) => evento.inscriptos)
   eventos: Evento[];
+
+  @OneToMany(() => Payment, (payment) => payment.inscripto)
+  payments: Payment[];
 }

@@ -16,7 +16,8 @@ export class AuthController {
         const { codeVerifier, codeChallenge } = await this.authService.generateCodeChallenge();
         req.session.codeVerifier = codeVerifier;
         req.session.clienteId = clienteId;
-
+        console.log(req.session);
+        
         const redirectUri = process.env.MERCADO_PAGO_REDIRECT_URI; 
         const clientMPId = process.env.MERCADO_PAGO_CLIENT_ID;
         const codeChallengeMethod = 'S256';

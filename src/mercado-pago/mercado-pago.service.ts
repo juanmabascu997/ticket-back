@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
-import MercadoPagoConfig, { Preference } from 'mercadopago';
+import MercadoPagoConfig, { OAuth, Preference } from 'mercadopago';
 import { Cliente } from '../clientes/entities/cliente.entity';
-import { IsNull, Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Evento } from 'src/eventos/entities/evento.entity';
 
 @Injectable()
@@ -47,17 +47,50 @@ export class MercadoPagoService {
       const { access_token, refresh_token } = response.data;
       cliente.access_token = access_token;
       cliente.refresh_token = refresh_token;
+      
       await this.clienteRepository.save(cliente);
 
-      return response.data;
-    } catch (error) {
+      return response;
+    } catch (error) {    
       console.error(
         'Error en la autorización:',
-        error.response.data || error.message,
+        error.response.data || error,
       );
       throw error;
     }
   }
+
+  async refreshToken(clienteId: string) {
+    const cliente = await this.clienteRepository.findOne({
+      where: { id: Number(clienteId) },
+    });
+
+    if (!cliente) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const clientMercadoPago = new MercadoPagoConfig({
+      accessToken: cliente.access_token,
+      options: { timeout: 5000 },
+    });
+  
+    const oauth = new OAuth(clientMercadoPago);
+  
+    try {
+      const result = await oauth.refresh({
+        body: {
+          client_secret: this.clientSecret,
+          client_id: this.clientId,
+          refresh_token: cliente.refresh_token,
+        }
+      });
+      return result
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      throw error
+    }
+  }
+  
 
   async createPaymentLink(
     nombreCompleto: string,
@@ -65,7 +98,7 @@ export class MercadoPagoService {
     precio: number,
     email: string,
     area_code: string,
-    numero: string,
+    number: string,
     eventoId: number,
   ): Promise<any> {
     try {
@@ -83,10 +116,10 @@ export class MercadoPagoService {
       const inscriptoExistente = evento.inscriptos.find(
         (inscripto) => inscripto.email == email,
       );
-
+      
       if (inscriptoExistente) {
         throw new NotFoundException(
-          `El usuario con ${inscriptoExistente} ya se encuentra inscripto.`,
+          `El usuario con email ${inscriptoExistente.email} ya se encuentra inscripto.`,
         );
       }
       
@@ -103,31 +136,34 @@ export class MercadoPagoService {
           `Error en cliente. No posee autorizacion para mercado pago.`,
         );
       }
-
+  
       const authToken = cliente.access_token;
       const clientMP = new MercadoPagoConfig({ accessToken: authToken });
       const body = {
         items: [
           {
-            id: 'unod',
+            id: String(eventoId),
+            descripcion: email,
             title: descripcion,
             quantity: 1,
             unit_price: Number(precio),
             currency_id: 'ARS',
           },
         ],
+        additional_info: email,
+        metadata: inscriptoExistente,
         payer: {
           name: nombreCompleto,
           email: email,
           phone: {
             area_code: area_code,
-            number: numero,
+            number: number,
           },
         },
         back_urls: {
-          success: '/success',
-          failure: '/failure',
-          pending: '/pending',
+          success: 'http://localhost:3000/payments/success/',
+          failure: 'http://localhost:3000/payments/failure/',
+          pending: 'http://localhost:3000/payments/pending/',
         },
         auto_return: 'approved',
       };
